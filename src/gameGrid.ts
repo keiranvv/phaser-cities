@@ -7,15 +7,16 @@ export class GameGrid extends Events.EventEmitter {
   private width: number
   private height: number
   private lastHoveredCell: Phaser.Math.Vector2 | null
-  private currentHoveredCell: Phaser.Math.Vector2 | null
   private graphics: Phaser.GameObjects.Graphics
-  private cells: { x: number; y: number; type: string }[]
+
+  private startDragPointerPosition: Phaser.Math.Vector2 | null = null
+  private isDragging: boolean = false
 
   constructor(
     scene: Phaser.Scene,
     gridCellSize: number = 32,
     width: number = 100,
-    height: number = 100,
+    height: number = 100
   ) {
     super()
 
@@ -24,9 +25,6 @@ export class GameGrid extends Events.EventEmitter {
     this.width = width
     this.height = height
     this.lastHoveredCell = null
-    this.currentHoveredCell = null
-
-    this.cells = []
 
     // Setup event listeners for pointer actions
     this.scene.input.on('pointerdown', this.handlePointerDown.bind(this))
@@ -39,6 +37,10 @@ export class GameGrid extends Events.EventEmitter {
     return this.width
   }
 
+  getGridHeight(): number {
+    return this.height
+  }
+
   getGridCellSize(): number {
     return this.gridCellSize
   }
@@ -48,7 +50,7 @@ export class GameGrid extends Events.EventEmitter {
     const gridHeight = this.height * this.gridCellSize
 
     this.graphics = this.scene.add.graphics({
-      lineStyle: { width: 1, color: 0xdddddd },
+      lineStyle: { width: 1, color: 0xdddddd, alpha: 0.5 },
     })
 
     // Draw vertical lines
@@ -63,6 +65,8 @@ export class GameGrid extends Events.EventEmitter {
   }
 
   handlePointerDown(pointer: Phaser.Input.Pointer): void {
+    this.startDragPointerPosition = pointer.position.clone()
+
     const cell = this.getWorldPointToGridCell(pointer)
 
     if (pointer.rightButtonDown()) {
@@ -73,54 +77,84 @@ export class GameGrid extends Events.EventEmitter {
   }
 
   handlePointerMove(pointer: Phaser.Input.Pointer): void {
+    if (this.startDragPointerPosition && !this.isDragging) {
+      const distance = this.scene.cameras.main
+        .getWorldPoint(
+          this.startDragPointerPosition.x,
+          this.startDragPointerPosition.y
+        )
+        .distance(pointer.position)
+
+      if (distance > 10) {
+        this.cellPointerStartDrag(this.getWorldPointToGridCell(pointer))
+      }
+    }
+
     const cell = this.getWorldPointToGridCell(pointer)
-    this.currentHoveredCell = cell
     if (!this.lastHoveredCell || !this.lastHoveredCell.equals(cell)) {
       this.cellPointerMove(cell)
+      this.cellPointerDrag(cell)
       this.lastHoveredCell = cell.clone()
     }
   }
 
   handlePointerUp(pointer: Phaser.Input.Pointer): void {
+    this.startDragPointerPosition = null
+
     const cell = this.getWorldPointToGridCell(pointer)
     this.cellPointerUp(cell)
+    this.cellPointerEndDrag(cell)
   }
 
   getWorldPointToGridCell(pointer: Phaser.Input.Pointer): Phaser.Math.Vector2 {
     const worldPoint = this.scene.cameras.main.getWorldPoint(
       pointer.x,
-      pointer.y,
+      pointer.y
     )
+
     const p = new Phaser.Math.Vector2(
       Math.floor(worldPoint.x / this.gridCellSize),
-      Math.floor(worldPoint.y / this.gridCellSize),
+      Math.floor(worldPoint.y / this.gridCellSize)
     )
 
     return p
   }
 
   cellRightPointerDown(cell: Phaser.Math.Vector2): void {
-    // Handle cell right pointer down event
     this.emit('cellRightPointerDown', cell)
   }
 
   cellPointerDown(cell: Phaser.Math.Vector2): void {
-    // Handle cell pointer down event
     this.emit('cellPointerDown', cell)
   }
 
   cellPointerMove(cell: Phaser.Math.Vector2): void {
-    // Handle cell pointer move event
     this.emit('cellPointerMove', cell)
   }
 
   cellPointerUp(cell: Phaser.Math.Vector2): void {
-    // Handle cell pointer up event
     this.emit('cellPointerUp', cell)
   }
 
   cellPointerClick(cell: Phaser.Math.Vector2): void {
-    // Handle cell pointer click event
     this.emit('cellPointerClick', cell)
+  }
+
+  cellPointerStartDrag(cell: Phaser.Math.Vector2): void {
+    this.isDragging = true
+    this.emit('cellPointerStartDrag', cell)
+  }
+
+  cellPointerDrag(cell: Phaser.Math.Vector2): void {
+    if (this.isDragging) {
+      this.emit('cellPointerDrag', cell)
+    }
+  }
+
+  cellPointerEndDrag(cell: Phaser.Math.Vector2): void {
+    if (this.isDragging) {
+      this.isDragging = false
+      this.emit('cellPointerEndDrag', cell)
+    }
   }
 }

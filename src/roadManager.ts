@@ -32,6 +32,10 @@ export type RoadCell = {
 }
 
 export class RoadManager extends Phaser.Events.EventEmitter {
+  private handleCellPointerDown: (cell: Phaser.Math.Vector2) => void
+  private handleCellPointerMove: (cell: Phaser.Math.Vector2) => void
+  private handleCellRightPointerDown: (cell: Phaser.Math.Vector2) => void
+
   gameGrid: GameGrid
   isDrawing: boolean
   startPoint: Phaser.Math.Vector2 | null
@@ -43,6 +47,8 @@ export class RoadManager extends Phaser.Events.EventEmitter {
   tilemap: Phaser.Tilemaps.Tilemap
   tileset: Phaser.Tilemaps.Tileset
   layer: Phaser.Tilemaps.TilemapLayer
+
+  enableDraw: boolean = false
 
   constructor(gameGrid: GameGrid) {
     super()
@@ -60,20 +66,45 @@ export class RoadManager extends Phaser.Events.EventEmitter {
 
     this.createTilemap()
 
-    // Listen to GameGrid events
-    this.gameGrid.on('cellPointerDown', this.handleCellPointerDown.bind(this))
-    this.gameGrid.on('cellPointerMove', this.handleCellPointerMove.bind(this))
-    this.gameGrid.on('cellPointerUp', this.handleCellPointerUp.bind(this))
-    this.gameGrid.on(
-      'cellRightPointerDown',
-      this.handleCellRightPointerDown.bind(this),
-    )
+    this.handleCellPointerDown = this._handleCellPointerDown.bind(this)
+    this.handleCellPointerMove = this._handleCellPointerMove.bind(this)
+    this.handleCellRightPointerDown =
+      this._handleCellRightPointerDown.bind(this)
+  }
 
-    this.gameGrid.scene.input.mouse.disableContextMenu()
+  enable(): void {
+    this.enableDraw = true
+
+    this.gameGrid.on('cellPointerDown', this.handleCellPointerDown)
+    this.gameGrid.on('cellPointerMove', this.handleCellPointerMove)
+    this.gameGrid.on('cellRightPointerDown', this.handleCellRightPointerDown)
+
+    this.emit('enable')
+  }
+
+  disable(): void {
+    this.enableDraw = false
+    this.isDrawing = false
+    this.startPoint = null
+    this.endPoint = null
+    this.previewGraphics.clear()
+
+    this.gameGrid.off('cellPointerDown', this.handleCellPointerDown)
+    this.gameGrid.off('cellPointerMove', this.handleCellPointerMove)
+    this.gameGrid.off('cellRightPointerDown', this.handleCellRightPointerDown)
+
+    this.emit('disable')
+  }
+
+  toggle(): void {
+    if (this.enableDraw) {
+      this.disable()
+    } else {
+      this.enable()
+    }
   }
 
   createTilemap() {
-    const mapSize = 32 // Change this based on your game's requirements
     this.tilemap = this.gameGrid.scene.make.tilemap({
       tileWidth: 32,
       tileHeight: 32,
@@ -90,7 +121,7 @@ export class RoadManager extends Phaser.Events.EventEmitter {
     this.existingRoadTiles = [] // Reset the existing road tiles array
   }
 
-  handleCellPointerDown(cell: Phaser.Math.Vector2): void {
+  _handleCellPointerDown(cell: Phaser.Math.Vector2): void {
     if (!this.isDrawing) {
       this.startPoint = cell
       this.endPoint = cell
@@ -117,21 +148,23 @@ export class RoadManager extends Phaser.Events.EventEmitter {
 
   isExistingRoadTile(cell: Phaser.Math.Vector2): boolean {
     return this.existingRoadTiles.some(
-      (tile) => tile.x === cell.x && tile.y === cell.y,
+      (tile) => tile.x === cell.x && tile.y === cell.y
     )
   }
 
-  handleCellRightPointerDown(cell: Phaser.Math.Vector2): void {
+  _handleCellRightPointerDown(cell: Phaser.Math.Vector2): void {
     // Cancel the current drawing operation
     if (this.isDrawing) {
       this.isDrawing = false
       this.previewGraphics.clear()
       this.startPoint = null
       this.endPoint = null
+    } else {
+      this.disable()
     }
   }
 
-  handleCellPointerMove(cell: Phaser.Math.Vector2): void {
+  _handleCellPointerMove(cell: Phaser.Math.Vector2): void {
     if (this.isDrawing && this.startPoint) {
       this.endPoint = this.snapTo90Degrees(this.startPoint, cell)
       this.previewRoad()
@@ -142,21 +175,17 @@ export class RoadManager extends Phaser.Events.EventEmitter {
     }
   }
 
-  handleCellPointerUp(cell: Phaser.Math.Vector2): void {
-    // This can be used if you want to finalize road on mouse up instead of second click
-  }
-
   drawRoad(): void {
     if (this.startPoint && this.endPoint) {
       const roadTiles = this.calculateRoadTiles(this.startPoint, this.endPoint)
       // Add new road tiles to the existing road tiles array
       // remove duplicates
       this.existingRoadTiles = this.existingRoadTiles.filter(
-        (t) => !roadTiles.some((r) => r.x === t.x && r.y === t.y),
+        (t) => !roadTiles.some((r) => r.x === t.x && r.y === t.y)
       )
       this.existingRoadTiles.push(...roadTiles)
       this.fillCells(roadTiles)
-      this.emit('roadTilesChanged', roadTiles)
+      this.emit('roadTilesChanged', this.existingRoadTiles)
       this.isDrawing = false
       this.previewGraphics.clear()
       this.startPoint = null
@@ -166,7 +195,7 @@ export class RoadManager extends Phaser.Events.EventEmitter {
 
   calculateRoadTiles(
     start: Phaser.Math.Vector2,
-    end: Phaser.Math.Vector2,
+    end: Phaser.Math.Vector2
   ): RoadCell[] {
     const xStart = Math.min(start.x, end.x)
     const xEnd = Math.max(start.x, end.x)
@@ -179,7 +208,7 @@ export class RoadManager extends Phaser.Events.EventEmitter {
     for (let x = xStart; x <= xEnd; x++) {
       for (let y = yStart; y <= yEnd; y++) {
         const existingTile = this.existingRoadTiles.find(
-          (t) => t.x === x && t.y === y,
+          (t) => t.x === x && t.y === y
         )
 
         // if (existingTile) {
@@ -187,19 +216,19 @@ export class RoadManager extends Phaser.Events.EventEmitter {
         // }
 
         const existingTileAbove = this.existingRoadTiles.find(
-          (t) => t.x === x && t.y === y - 1,
+          (t) => t.x === x && t.y === y - 1
         )
 
         const existingTileBelow = this.existingRoadTiles.find(
-          (t) => t.x === x && t.y === y + 1,
+          (t) => t.x === x && t.y === y + 1
         )
 
         const existingTileLeft = this.existingRoadTiles.find(
-          (t) => t.x === x - 1 && t.y === y,
+          (t) => t.x === x - 1 && t.y === y
         )
 
         const existingTileRight = this.existingRoadTiles.find(
-          (t) => t.x === x + 1 && t.y === y,
+          (t) => t.x === x + 1 && t.y === y
         )
 
         const shouldHaveTopConnectionHorizontal =
@@ -284,27 +313,6 @@ export class RoadManager extends Phaser.Events.EventEmitter {
       const tileType = this.getTileType(tile)
       this.layer.putTileAt(tileType, tile.x, tile.y)
     })
-    // const xStart = Math.min(start.x, end.x)
-    // const xEnd = Math.max(start.x, end.x)
-    // const yStart = Math.min(start.y, end.y)
-    // const yEnd = Math.max(start.y, end.y)
-    // const isHorizontal = yStart === yEnd
-
-    // for (let x = xStart; x <= xEnd; x++) {
-    //   for (let y = yStart; y <= yEnd; y++) {
-    //     const tileIndex = getRoadTileIndex(
-    //       x,
-    //       y,
-    //       this.existingRoadTiles,
-    //       isHorizontal,
-    //       xStart,
-    //       xEnd,
-    //       yStart,
-    //       yEnd,
-    //     )
-    //     this.layer.putTileAt(tileIndex, x, y)
-    //   }
-    // }
   }
 
   getTileType(tile: RoadCell): RoadTiles {
@@ -366,7 +374,7 @@ export class RoadManager extends Phaser.Events.EventEmitter {
 
   snapTo90Degrees(
     start: Phaser.Math.Vector2,
-    end: Phaser.Math.Vector2,
+    end: Phaser.Math.Vector2
   ): Phaser.Math.Vector2 {
     let dx = end.x - start.x
     let dy = end.y - start.y
