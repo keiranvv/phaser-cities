@@ -38,6 +38,7 @@ export class RoadManager extends Phaser.Events.EventEmitter {
 
   gameGrid: GameGrid
   isDrawing: boolean
+  destroyMode: boolean
   startPoint: Phaser.Math.Vector2 | null
   endPoint: Phaser.Math.Vector2 | null
   graphics: Phaser.GameObjects.Graphics
@@ -63,19 +64,17 @@ export class RoadManager extends Phaser.Events.EventEmitter {
     this.previewGraphics = this.gameGrid.scene.add.graphics({
       fillStyle: { color: 0x594f4f, alpha: 0.5 },
     }) // Initialize preview graphics
+    this.destroyMode = false
 
     this.createTilemap()
 
     this.handleCellPointerDown = this._handleCellPointerDown.bind(this)
     this.handleCellPointerMove = this._handleCellPointerMove.bind(this)
-    this.handleCellRightPointerDown = this._handleCellRightPointerDown.bind(
-      this,
-    )
+    this.handleCellRightPointerDown =
+      this._handleCellRightPointerDown.bind(this)
   }
 
   enable(): void {
-    this.enableDraw = true
-
     this.gameGrid.on('cellPointerDown', this.handleCellPointerDown)
     this.gameGrid.on('cellPointerMove', this.handleCellPointerMove)
     this.gameGrid.on('cellRightPointerDown', this.handleCellRightPointerDown)
@@ -129,13 +128,15 @@ export class RoadManager extends Phaser.Events.EventEmitter {
       this.isDrawing = true
       this.previewRoad()
     } else {
-      if (!this.isExistingRoadTile(cell)) {
+      if (!this.isExistingRoadTile(cell) && !this.destroyMode) {
         this.drawRoad(false)
         // Start new road immediately from the current cell
         this.isDrawing = true
         this.startPoint = this.endPoint
         this.endPoint = cell
         this.previewRoad()
+      } else if (this.destroyMode) {
+        this.destroyRoad()
       } else {
         // If clicked on an existing road tile, do not continue drawing
         this.drawRoad()
@@ -149,7 +150,7 @@ export class RoadManager extends Phaser.Events.EventEmitter {
 
   isExistingRoadTile(cell: Phaser.Math.Vector2): boolean {
     return this.existingRoadTiles.some(
-      (tile) => tile.x === cell.x && tile.y === cell.y,
+      (tile) => tile.x === cell.x && tile.y === cell.y
     )
   }
 
@@ -176,11 +177,14 @@ export class RoadManager extends Phaser.Events.EventEmitter {
 
   drawRoad(clearEndPoint: boolean = true): void {
     if (this.startPoint && this.endPoint) {
-      const roadTiles = this.calculateRoadTiles(this.startPoint, this.endPoint)
+      const roadTiles = this.createNewTilesForPath(
+        this.startPoint,
+        this.endPoint
+      )
       // Add new road tiles to the existing road tiles array
       // remove duplicates
       this.existingRoadTiles = this.existingRoadTiles.filter(
-        (t) => !roadTiles.some((r) => r.x === t.x && r.y === t.y),
+        (t) => !roadTiles.some((r) => r.x === t.x && r.y === t.y)
       )
       this.existingRoadTiles.push(...roadTiles)
       this.fillCells(roadTiles)
@@ -192,9 +196,73 @@ export class RoadManager extends Phaser.Events.EventEmitter {
     }
   }
 
-  calculateRoadTiles(
+  destroyRoad(): void {
+    if (this.startPoint && this.endPoint) {
+      const roadTilesToRemove = this.createNewTilesForPath(
+        this.startPoint,
+        this.endPoint
+      )
+
+      // Remove road tiles from the existing road tiles array
+      this.existingRoadTiles = this.existingRoadTiles.filter(
+        (tile) =>
+          !roadTilesToRemove.some(
+            (removeTile) => removeTile.x === tile.x && removeTile.y === tile.y
+          )
+      )
+
+      roadTilesToRemove.forEach((tile) => {
+        this.layer.removeTileAt(tile.x, tile.y)
+        this.updateNeighboringTiles(tile) // Update neighboring tiles
+      })
+
+      this.fillCells(this.existingRoadTiles)
+      this.emit('roadTilesChanged', this.existingRoadTiles)
+    }
+
+    this.isDrawing = false
+    this.previewGraphics.clear()
+    this.startPoint = null
+    this.endPoint = null
+  }
+
+  updateNeighboringTiles(removedTile: RoadCell): void {
+    // Define the positions of neighboring tiles
+    const neighbors = [
+      { x: removedTile.x - 1, y: removedTile.y, direction: 'left' },
+      { x: removedTile.x + 1, y: removedTile.y, direction: 'right' },
+      { x: removedTile.x, y: removedTile.y - 1, direction: 'top' },
+      { x: removedTile.x, y: removedTile.y + 1, direction: 'bottom' },
+    ]
+
+    neighbors.forEach((neighborPos) => {
+      const neighbor = this.existingRoadTiles.find(
+        (tile) => tile.x === neighborPos.x && tile.y === neighborPos.y
+      )
+
+      if (neighbor) {
+        if (neighbor.connections.bottom && neighborPos.direction === 'top') {
+          neighbor.connections.bottom = false
+        }
+
+        if (neighbor.connections.top && neighborPos.direction === 'bottom') {
+          neighbor.connections.top = false
+        }
+
+        if (neighbor.connections.right && neighborPos.direction === 'left') {
+          neighbor.connections.right = false
+        }
+
+        if (neighbor.connections.left && neighborPos.direction === 'right') {
+          neighbor.connections.left = false
+        }
+      }
+    })
+  }
+
+  createNewTilesForPath(
     start: Phaser.Math.Vector2,
-    end: Phaser.Math.Vector2,
+    end: Phaser.Math.Vector2
   ): RoadCell[] {
     const xStart = Math.min(start.x, end.x)
     const xEnd = Math.max(start.x, end.x)
@@ -207,27 +275,23 @@ export class RoadManager extends Phaser.Events.EventEmitter {
     for (let x = xStart; x <= xEnd; x++) {
       for (let y = yStart; y <= yEnd; y++) {
         const existingTile = this.existingRoadTiles.find(
-          (t) => t.x === x && t.y === y,
+          (t) => t.x === x && t.y === y
         )
 
-        // if (existingTile) {
-        //   console.log(existingTile.connections)
-        // }
-
         const existingTileAbove = this.existingRoadTiles.find(
-          (t) => t.x === x && t.y === y - 1,
+          (t) => t.x === x && t.y === y - 1
         )
 
         const existingTileBelow = this.existingRoadTiles.find(
-          (t) => t.x === x && t.y === y + 1,
+          (t) => t.x === x && t.y === y + 1
         )
 
         const existingTileLeft = this.existingRoadTiles.find(
-          (t) => t.x === x - 1 && t.y === y,
+          (t) => t.x === x - 1 && t.y === y
         )
 
         const existingTileRight = this.existingRoadTiles.find(
-          (t) => t.x === x + 1 && t.y === y,
+          (t) => t.x === x + 1 && t.y === y
         )
 
         const shouldHaveTopConnectionHorizontal =
@@ -307,6 +371,10 @@ export class RoadManager extends Phaser.Events.EventEmitter {
     }
   }
 
+  /**
+   * HANDLE DRAWING OF TILES ON THE TILEMAP
+   */
+
   fillCells(roadTiles: RoadCell[]): void {
     roadTiles.forEach((tile) => {
       const tileType = this.getTileType(tile)
@@ -373,7 +441,7 @@ export class RoadManager extends Phaser.Events.EventEmitter {
 
   snapTo90Degrees(
     start: Phaser.Math.Vector2,
-    end: Phaser.Math.Vector2,
+    end: Phaser.Math.Vector2
   ): Phaser.Math.Vector2 {
     let dx = end.x - start.x
     let dy = end.y - start.y

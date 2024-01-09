@@ -107,7 +107,7 @@ export class ZoneManager {
         ? 3
         : 0,
       x,
-      y,
+      y
     )
   }
 
@@ -117,15 +117,7 @@ export class ZoneManager {
   }
 
   private displayZoneableTiles() {
-    this.zoneableCells = new Map<string, boolean>()
-
-    this.tilemap.fill(
-      null,
-      0,
-      0,
-      this.gameGrid.getGridWidth(),
-      this.gameGrid.getGridHeight(),
-    )
+    const newZoneableCells = new Map<string, boolean>()
 
     this.roadCells.forEach((roadCell) => {
       const { x, y } = roadCell
@@ -133,33 +125,49 @@ export class ZoneManager {
       for (let i = 0; i <= 4; i++) {
         if (
           this.isZoneable(roadCell, x + i, y) &&
-          !this.zoneableCells.has(`${x + i}_${y}`)
+          !newZoneableCells.has(`${x + i}_${y}`)
         ) {
-          this.drawZoneableTile(x + i, y)
-          this.zoneableCells.set(`${x + i}_${y}`, true)
+          newZoneableCells.set(`${x + i}_${y}`, true)
         }
         if (
           this.isZoneable(roadCell, x - i, y) &&
-          !this.zoneableCells.has(`${x - i}_${y}`)
+          !newZoneableCells.has(`${x - i}_${y}`)
         ) {
-          this.drawZoneableTile(x - i, y)
-          this.zoneableCells.set(`${x - i}_${y}`, true)
+          newZoneableCells.set(`${x - i}_${y}`, true)
         }
         if (
           this.isZoneable(roadCell, x, y + i) &&
-          !this.zoneableCells.has(`${x}_${y + i}`)
+          !newZoneableCells.has(`${x}_${y + i}`)
         ) {
-          this.drawZoneableTile(x, y + i)
-          this.zoneableCells.set(`${x}_${y + i}`, true)
+          newZoneableCells.set(`${x}_${y + i}`, true)
         }
         if (
           this.isZoneable(roadCell, x, y - i) &&
-          !this.zoneableCells.has(`${x}_${y - i}`)
+          !newZoneableCells.has(`${x}_${y - i}`)
         ) {
-          this.drawZoneableTile(x, y - i)
-          this.zoneableCells.set(`${x}_${y - i}`, true)
+          newZoneableCells.set(`${x}_${y - i}`, true)
         }
       }
+    })
+
+    const invalidCells: string[] = []
+
+    this.zoneableCells.forEach((_, key) => {
+      if (!newZoneableCells.has(key)) {
+        invalidCells.push(key)
+      }
+    })
+
+    invalidCells.forEach((key) => {
+      const [x, y] = key.split('_')
+      this.tilemap.removeTileAt(parseInt(x), parseInt(y))
+    })
+
+    this.zoneableCells = newZoneableCells
+
+    this.zoneableCells.forEach((_, key) => {
+      const [x, y] = key.split('_')
+      this.drawZoneableTile(parseInt(x), parseInt(y))
     })
   }
 
@@ -186,6 +194,10 @@ export class ZoneManager {
 
   private isZoneable(originRoadCell: RoadCell, x: number, y: number) {
     if (this.isRoad(x, y)) {
+      return false
+    }
+
+    if (this.isZoned(x, y)) {
       return false
     }
 
@@ -220,6 +232,10 @@ export class ZoneManager {
     return this.roadCells.some((roadCell) => {
       return roadCell.x === x && roadCell.y === y
     })
+  }
+
+  private isZoned(x: number, y: number) {
+    return this.zonedCells.has(`${x}_${y}`)
   }
 
   drawZoneableTile(x, y) {
