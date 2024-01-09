@@ -2,67 +2,60 @@ import * as Phaser from 'phaser'
 import { CameraController } from './cameraController'
 import { RoadCell, RoadManager } from './roadManager'
 import { GameGrid } from './gameGrid'
-import { UIScene } from './uiScene'
 import { ZoneManager } from './zoneManager'
 
-type CursorMode = 'pan' | 'draw' | 'erase'
-
 const gridCellSize: number = 32
-const worldSize: number = 320
+const worldSize: number = 32
+
+type ToolType = 'road' | 'residential' | 'commercial' | 'industrial' | 'dezone'
 
 class MainScene extends Phaser.Scene {
   private gridCellSize: number = gridCellSize
   private worldSize: number = worldSize
   private grid: GameGrid
-  private graphics: Phaser.GameObjects.Graphics
   private cameraController: CameraController
   private roadManager: RoadManager
   private zoneManager: ZoneManager
-  private roadCells: RoadCell[] = []
 
   constructor() {
     super({ key: 'MainScene' })
   }
 
   setupToolbar() {
-    document.getElementById('road').addEventListener('click', (e) => {
-      e.stopPropagation()
-      this.zoneManager.setZoneType('none')
+    const toolButtons: { [key: string]: ToolType } = {
+      road: 'road',
+      residential: 'residential',
+      commercial: 'commercial',
+      industrial: 'industrial',
+      dezone: 'dezone',
+    }
+
+    for (const [id, toolType] of Object.entries(toolButtons)) {
+      document.getElementById(id).addEventListener('click', (e) => {
+        e.stopPropagation()
+        if ((e.target as HTMLElement).classList.contains('active')) {
+          ;(e.target as HTMLElement).classList.remove('active')
+        } else {
+          document
+            .querySelectorAll('#toolbar .button')
+            .forEach((el) => el.classList.remove('active'))
+          ;(e.target as HTMLElement).classList.add('active')
+        }
+        this.selectTool(toolType)
+      })
+    }
+  }
+
+  selectTool(toolType: ToolType) {
+    if (toolType === 'road') {
       this.roadManager.toggle()
-    })
-
-    document.getElementById('residential').addEventListener('click', (e) => {
-      e.stopPropagation()
-
+      this.zoneManager.setZoneType('none')
+    } else {
       this.roadManager.disable()
-      if (this.zoneManager.getZoneType() === 'residential') {
-        this.zoneManager.setZoneType('none')
-      } else {
-        this.zoneManager.setZoneType('residential')
-      }
-    })
-
-    document.getElementById('commercial').addEventListener('click', (e) => {
-      e.stopPropagation()
-
-      this.roadManager.disable()
-      if (this.zoneManager.getZoneType() === 'commercial') {
-        this.zoneManager.setZoneType('none')
-      } else {
-        this.zoneManager.setZoneType('commercial')
-      }
-    })
-
-    document.getElementById('industrial').addEventListener('click', (e) => {
-      e.stopPropagation()
-
-      this.roadManager.disable()
-      if (this.zoneManager.getZoneType() === 'industrial') {
-        this.zoneManager.setZoneType('none')
-      } else {
-        this.zoneManager.setZoneType('industrial')
-      }
-    })
+      this.zoneManager.setZoneType(
+        this.zoneManager.getZoneType() === toolType ? 'none' : toolType,
+      )
+    }
   }
 
   preload(): void {
@@ -73,36 +66,41 @@ class MainScene extends Phaser.Scene {
 
   create(): void {
     this.setupToolbar()
-    this.cameras.main.setBounds(
-      0,
-      0,
-      this.worldSize * this.gridCellSize,
-      this.worldSize * this.gridCellSize
-    )
-
+    this.input.setDefaultCursor('url(assets/images/cursor.png), pointer')
     this.physics.world.setBounds(
       0,
       0,
       this.worldSize * this.gridCellSize,
-      this.worldSize * this.gridCellSize
+      this.worldSize * this.gridCellSize,
+    )
+    this.cameras.main.setBounds(
+      0,
+      0,
+      this.worldSize * this.gridCellSize,
+      this.worldSize * this.gridCellSize,
+    )
+
+    // Put camera in the middle of the world
+    this.cameras.main.centerOn(
+      this.worldSize * this.gridCellSize * 0.5,
+      this.worldSize * this.gridCellSize * 0.5,
     )
 
     this.grid = new GameGrid(
       this,
       this.gridCellSize,
       this.worldSize,
-      this.worldSize
+      this.worldSize,
     )
     this.input.mouse.disableContextMenu()
 
-    this.grid.drawGrid()
+    // this.grid.drawGrid()
 
     this.cameraController = new CameraController(this)
     this.zoneManager = new ZoneManager([], this.grid)
     this.roadManager = new RoadManager(this.grid)
 
     this.roadManager.on('roadTilesChanged', (cells: RoadCell[]) => {
-      this.roadCells = cells
       this.zoneManager.updateRoadCells(cells)
     })
   }
@@ -120,12 +118,10 @@ const config: Phaser.Types.Core.GameConfig = {
     arcade: {
       debug: true,
       gravity: { y: 0 },
-      width: 2000,
-      height: 2000,
     },
   },
-  width: 2000,
-  height: 2000,
+  width: window.innerWidth,
+  height: window.innerHeight,
   scene: [MainScene],
   backgroundColor: '#F8F6EB',
   // Additional configuration options

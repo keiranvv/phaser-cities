@@ -2,6 +2,7 @@ import * as Phaser from 'phaser'
 import { GameGrid } from './gameGrid'
 
 export class AreaSelect extends Phaser.Events.EventEmitter {
+  private isEnabled: boolean = false
   private gameGrid: GameGrid
   private isDragging: boolean = false
   private startCell: Phaser.Math.Vector2 | null = null
@@ -12,6 +13,9 @@ export class AreaSelect extends Phaser.Events.EventEmitter {
   private handleCellPointerStartDrag: (cell: Phaser.Math.Vector2) => void
   private handleCellPointerDrag: (cell: Phaser.Math.Vector2) => void
   private handleCellPointerEndDrag: (cell: Phaser.Math.Vector2) => void
+  private handleCellPointerMove: (cell: Phaser.Math.Vector2) => void
+
+  public showCursor: boolean = false
 
   constructor(gameGrid: GameGrid) {
     super()
@@ -23,30 +27,42 @@ export class AreaSelect extends Phaser.Events.EventEmitter {
       fillStyle: { color: this.color, alpha: 0.2 },
     })
 
-    this.handleCellPointerStartDrag =
-      this._handleCellPointerStartDrag.bind(this)
+    this.handleCellPointerStartDrag = this._handleCellPointerStartDrag.bind(
+      this,
+    )
     this.handleCellPointerDrag = this._handleCellPointerDrag.bind(this)
     this.handleCellPointerEndDrag = this._handleCellPointerEndDrag.bind(this)
-
-    // this.enable()
+    this.handleCellPointerMove = this._handleCellPointerMove.bind(this)
   }
 
   public setColor(color: number) {
     this.color = color
-    this.previewGraphics.lineStyle(1, color, 0.4)
-    this.previewGraphics.fillStyle(color, 0.2)
+
+    this.previewGraphics.clear()
+
+    this.previewGraphics.setDefaultStyles({
+      lineStyle: { width: 1, color: this.color, alpha: 0.4 },
+      fillStyle: { color: this.color, alpha: 0.2 },
+    })
   }
 
   enable() {
+    this.isEnabled = true
     this.gameGrid.on('cellPointerStartDrag', this.handleCellPointerStartDrag)
     this.gameGrid.on('cellPointerDrag', this.handleCellPointerDrag)
     this.gameGrid.on('cellPointerEndDrag', this.handleCellPointerEndDrag)
+
+    this.gameGrid.on('cellPointerMove', this.handleCellPointerMove)
   }
 
   disable() {
+    this.isEnabled = false
+
     this.gameGrid.off('cellPointerStartDrag', this.handleCellPointerStartDrag)
     this.gameGrid.off('cellPointerDrag', this.handleCellPointerDrag)
     this.gameGrid.off('cellPointerEndDrag', this.handleCellPointerEndDrag)
+
+    this.gameGrid.off('cellPointerMove', this.handleCellPointerMove)
 
     this.previewGraphics.clear()
     this.startCell = null
@@ -74,7 +90,7 @@ export class AreaSelect extends Phaser.Events.EventEmitter {
       startX * this.gameGrid.getGridCellSize(),
       startY * this.gameGrid.getGridCellSize(),
       width * this.gameGrid.getGridCellSize(),
-      height * this.gameGrid.getGridCellSize()
+      height * this.gameGrid.getGridCellSize(),
     )
   }
 
@@ -87,5 +103,18 @@ export class AreaSelect extends Phaser.Events.EventEmitter {
     this.previewGraphics.clear()
     this.startCell = null
     this.isDragging = false
+  }
+
+  private _handleCellPointerMove(cell: Phaser.Math.Vector2) {
+    if (this.isDragging || !this.isEnabled || !this.showCursor) return
+
+    // fill in current cell
+    this.previewGraphics.clear()
+    this.previewGraphics.fillRect(
+      cell.x * this.gameGrid.getGridCellSize(),
+      cell.y * this.gameGrid.getGridCellSize(),
+      this.gameGrid.getGridCellSize(),
+      this.gameGrid.getGridCellSize(),
+    )
   }
 }

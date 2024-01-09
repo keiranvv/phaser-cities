@@ -1,72 +1,80 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="game.js"></script>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: sans-serif;
+        cursor: url('assets/images/cursor.png'), auto;
+      }
 
-<head>
-  <meta charset="utf-8" />
-  <script src="game.js"></script>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      font-family: sans-serif
-    }
+      #toolbar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
 
-    #toolbar {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      padding: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
+      .button {
+        padding: 8px 16px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        cursor: pointer;
+        user-select: none;
+        font-weight: medium;
+        font-size: 14px;
+        position: relative;
+        background: rgba(0, 0, 0, 0.05);
+      }
 
-    .button {
-      padding: 8px 16px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      cursor: pointer;
-      user-select: none;
-      font-weight: medium;
-      font-size: 14px;
-      position: relative;
-      background: rgba(0, 0, 0, 0.05);
-    }
+      .button.active {
+        background: #594f4f;
+        border-color: #594f4f;
+        color: white;
+      }
 
-    .sub-menu {
-      position: absolute;
-      bottom: 48px;
-      left: 0;
-      row-gap: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      background: #fff;
-      padding: 8px;
-      border-radius: 4px;
-      box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
-    }
-  </style>
-</head>
+      .sub-menu {
+        position: absolute;
+        bottom: 48px;
+        left: 0;
+        row-gap: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: #fff;
+        padding: 8px;
+        border-radius: 4px;
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
 
-<body>
-  <div id="toolbar">
-    <div class="button" id="road">
-      Road
+  <body>
+    <div id="toolbar">
+      <div class="button" id="road">
+        Road
+      </div>
+      <div class="button" id="residential">
+        Residential
+      </div>
+      <div class="button" id="commercial">
+        Commercial
+      </div>
+      <div class="button" id="industrial">
+        Industrial
+      </div>
+      <div class="button" id="dezone">
+        De-zone
+      </div>
     </div>
-    <div class="button" id="residential">
-      Residential
-    </div>
-    <div class="button" id="commercial">
-      Commercial
-    </div>
-    <div class="button" id="industrial">
-      Industrial
-    </div>
-  </div>
-  <div id="game"></div>
-</body>
-
+    <div id="game"></div>
+  </body>
 </html>

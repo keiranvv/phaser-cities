@@ -2,19 +2,27 @@ import { AreaSelect } from './areaSelect'
 import { GameGrid } from './gameGrid'
 import { RoadCell } from './roadManager'
 
+type ZoneType = 'residential' | 'commercial' | 'industrial' | 'dezone'
+
 export class ZoneManager {
   private roadCells: RoadCell[]
   private gameGrid: GameGrid
   private zoneableCells: Map<string, boolean> = new Map()
-  private zonedCells: Map<string, 'residential' | 'commercial' | 'industrial'> =
-    new Map()
+  private zonedCells: Map<string, ZoneType> = new Map()
   private areaSelect: AreaSelect
+  private isDezoning: boolean = false
 
-  private zoneType: 'residential' | 'commercial' | 'industrial' | null = null
+  private zoneType:
+    | 'residential'
+    | 'commercial'
+    | 'industrial'
+    | 'dezone'
+    | null = null
   public zoneColors = {
     residential: 0x498467,
     commercial: 0x5da9e9,
     industrial: 0xd98324,
+    dezone: 0x000000,
   }
 
   tilemap: Phaser.Tilemaps.Tilemap
@@ -25,15 +33,13 @@ export class ZoneManager {
     this.roadCells = roadCells
     this.gameGrid = gameGrid
     this.areaSelect = new AreaSelect(gameGrid)
-
+    this.areaSelect.showCursor = true
     this.areaSelect.on('areaSelected', this.handleAreaSelect.bind(this))
 
     this.createTilemap()
   }
 
-  public setZoneType(
-    zoneType: 'residential' | 'commercial' | 'industrial' | 'none'
-  ) {
+  public setZoneType(zoneType: ZoneType | 'none') {
     if (zoneType === 'none') {
       this.zoneType = null
       this.areaSelect.disable()
@@ -74,7 +80,14 @@ export class ZoneManager {
 
     for (let x = startX; x <= endX; x++) {
       for (let y = startY; y <= endY; y++) {
-        if (this.zoneableCells.has(`${x}_${y}`)) {
+        if (this.zoneType === 'dezone' && this.zonedCells.has(`${x}_${y}`)) {
+          this.zonedCells.delete(`${x}_${y}`)
+          this.zoneableCells.set(`${x}_${y}`, true)
+          this.tilemap.removeTileAt(x, y)
+          this.drawZoneableTile(x, y)
+        } else if (this.zoneType === 'dezone') {
+          continue
+        } else if (this.zoneableCells.has(`${x}_${y}`)) {
           this.zoneCell(x, y)
         }
       }
@@ -94,7 +107,7 @@ export class ZoneManager {
         ? 3
         : 0,
       x,
-      y
+      y,
     )
   }
 
@@ -111,7 +124,7 @@ export class ZoneManager {
       0,
       0,
       this.gameGrid.getGridWidth(),
-      this.gameGrid.getGridHeight()
+      this.gameGrid.getGridHeight(),
     )
 
     this.roadCells.forEach((roadCell) => {

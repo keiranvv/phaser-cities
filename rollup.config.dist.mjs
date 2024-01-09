@@ -14,7 +14,7 @@ export default {
   //  If using Phaser 3.21 or **below**, add: `intro: 'var global = window;'` to the output object.
   output: {
     file: './dist/game.js',
-    name: 'MyGame',
+    name: 'SimpleCities',
     format: 'iife',
     sourcemap: false,
   },
