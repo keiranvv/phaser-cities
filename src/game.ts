@@ -2,7 +2,8 @@ import * as Phaser from 'phaser'
 import { CameraController } from './cameraController'
 import { RoadCell, RoadManager } from './roadManager'
 import { GameGrid } from './gameGrid'
-import { ZoneManager } from './zoneManager'
+import { ZoneManager, ZoneType } from './zoneManager'
+import { BuildingSpawner } from './buildingSpawner'
 
 const gridCellSize: number = 32
 const worldSize: number = 320
@@ -22,6 +23,7 @@ class MainScene extends Phaser.Scene {
   private cameraController: CameraController
   private roadManager: RoadManager
   private zoneManager: ZoneManager
+  private buildingSpawner: BuildingSpawner
 
   constructor() {
     super({ key: 'MainScene' })
@@ -69,7 +71,7 @@ class MainScene extends Phaser.Scene {
       this.roadManager.destroyMode = true
     } else {
       this.zoneManager.setZoneType(
-        this.zoneManager.getZoneType() === toolType ? 'none' : toolType
+        this.zoneManager.getZoneType() === toolType ? 'none' : toolType,
       )
     }
   }
@@ -87,26 +89,26 @@ class MainScene extends Phaser.Scene {
       0,
       0,
       this.worldSize * this.gridCellSize,
-      this.worldSize * this.gridCellSize
+      this.worldSize * this.gridCellSize,
     )
     this.cameras.main.setBounds(
       0,
       0,
       this.worldSize * this.gridCellSize,
-      this.worldSize * this.gridCellSize
+      this.worldSize * this.gridCellSize,
     )
 
     // Put camera in the middle of the world
     this.cameras.main.centerOn(
       this.worldSize * this.gridCellSize * 0.5,
-      this.worldSize * this.gridCellSize * 0.5
+      this.worldSize * this.gridCellSize * 0.5,
     )
 
     this.grid = new GameGrid(
       this,
       this.gridCellSize,
       this.worldSize,
-      this.worldSize
+      this.worldSize,
     )
     this.input.mouse.disableContextMenu()
 
@@ -115,9 +117,14 @@ class MainScene extends Phaser.Scene {
     this.cameraController = new CameraController(this)
     this.zoneManager = new ZoneManager([], this.grid)
     this.roadManager = new RoadManager(this.grid)
+    this.buildingSpawner = new BuildingSpawner(this.grid)
 
     this.roadManager.on('roadTilesChanged', (cells: RoadCell[]) => {
       this.zoneManager.updateRoadCells(cells)
+    })
+
+    this.zoneManager.on('zonedCellsChanged', (cells: Map<string, ZoneType>) => {
+      this.buildingSpawner.setZonedCells(cells)
     })
   }
 
