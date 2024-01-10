@@ -1,0 +1,28 @@
+{
+  "residential": [
+    {
+      "name": "residential_1_1",
+      "size": {
+        "width": 1,
+        "height": 1
+      },
+      "possibleOrientations": ["top", "bottom", "left", "right"],
+      "tilemap": {
+        "name": "spawnables",
+        "index": 0
+      }
+    },
+    {
+      "name": "residential_2_2",
+      "size": {
+        "width": 2,
+        "height": 2
+      },
+      "possibleOrientations": ["top", "bottom", "left", "right"],
+      "tilemap": {
+        "name": "spawnables",
+        "index": 1
+      }
+    }
+  ]
+}

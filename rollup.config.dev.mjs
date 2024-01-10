@@ -3,6 +3,7 @@ import { nodeResolve } from '@rollup/plugin-node-resolve'
 import replace from '@rollup/plugin-replace'
 import serve from 'rollup-plugin-serve'
 import typescript from '@rollup/plugin-typescript'
+import json from '@rollup/plugin-json'
 
 export default {
   //  Our game entry point (edit as required)
@@ -31,6 +32,8 @@ export default {
       'typeof PLUGIN_FBINSTANT': JSON.stringify(false),
       'typeof FEATURE_SOUND': JSON.stringify(true),
     }),
+
+    json(),
 
     //  Parse our .ts source files
     nodeResolve({

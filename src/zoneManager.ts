@@ -1,10 +1,12 @@
+import * as Phaser from 'phaser'
+
 import { AreaSelect } from './areaSelect'
 import { GameGrid } from './gameGrid'
 import { RoadCell } from './roadManager'
 
-type ZoneType = 'residential' | 'commercial' | 'industrial' | 'dezone'
+export type ZoneType = 'residential' | 'commercial' | 'industrial' | 'dezone'
 
-export class ZoneManager {
+export class ZoneManager extends Phaser.Events.EventEmitter {
   private roadCells: RoadCell[]
   private gameGrid: GameGrid
   private zoneableCells: Map<string, boolean> = new Map()
@@ -18,6 +20,7 @@ export class ZoneManager {
     | 'industrial'
     | 'dezone'
     | null = null
+
   public zoneColors = {
     residential: 0x498467,
     commercial: 0x5da9e9,
@@ -30,6 +33,8 @@ export class ZoneManager {
   layer: Phaser.Tilemaps.TilemapLayer
 
   constructor(roadCells: RoadCell[], gameGrid: GameGrid) {
+    super()
+
     this.roadCells = roadCells
     this.gameGrid = gameGrid
     this.areaSelect = new AreaSelect(gameGrid)
@@ -92,6 +97,8 @@ export class ZoneManager {
         }
       }
     }
+
+    this.emit('zonedCellsChanged', this.zonedCells)
   }
 
   private zoneCell(x: number, y: number) {
@@ -160,6 +167,7 @@ export class ZoneManager {
 
     invalidCells.forEach((key) => {
       const [x, y] = key.split('_')
+      this.zonedCells.delete(key)
       this.tilemap.removeTileAt(parseInt(x), parseInt(y))
     })
 
