@@ -15,6 +15,14 @@
         {
           "filename": "residential_2_2",
           "frame": { "x": 32, "y": 0, "w": 64, "h": 64 }
+        },
+        {
+          "filename": "residential_2_2_back",
+          "frame": { "x": 96, "y": 0, "w": 64, "h": 64 }
+        },
+        {
+          "filename": "residential_1_1_back",
+          "frame": { "x": 0, "y": 1, "w": 32, "h": 32 }
         }
       ]
     }

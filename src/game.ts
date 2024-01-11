@@ -71,7 +71,7 @@ class MainScene extends Phaser.Scene {
       this.roadManager.destroyMode = true
     } else {
       this.zoneManager.setZoneType(
-        this.zoneManager.getZoneType() === toolType ? 'none' : toolType
+        this.zoneManager.getZoneType() === toolType ? 'none' : toolType,
       )
     }
   }
@@ -82,9 +82,9 @@ class MainScene extends Phaser.Scene {
     this.load.image('zones', 'assets/images/tiles/zones.png')
     // this.load.image('spawnables', 'assets/images/tiles/spawnables.png')
     this.load.atlas(
-      'spawnables',
+      'spawnablesAtlas',
       'assets/images/tiles/spawnables.png',
-      'assets/images/tiles/spawnables.json'
+      'assets/images/tiles/spawnables.json',
     )
   }
 
@@ -95,13 +95,13 @@ class MainScene extends Phaser.Scene {
       0,
       0,
       this.worldSize * this.gridCellSize,
-      this.worldSize * this.gridCellSize
+      this.worldSize * this.gridCellSize,
     )
     this.cameras.main.setBounds(
       0,
       0,
       this.worldSize * this.gridCellSize,
-      this.worldSize * this.gridCellSize
+      this.worldSize * this.gridCellSize,
     )
 
     // Put camera in the middle of the world
@@ -114,7 +114,7 @@ class MainScene extends Phaser.Scene {
       this,
       this.gridCellSize,
       this.worldSize,
-      this.worldSize
+      this.worldSize,
     )
     this.input.mouse.disableContextMenu()
 

@@ -4,6 +4,7 @@ import { GameGrid } from './gameGrid'
 import { ZoneType } from './zoneManager'
 
 export type Spawnable = {
+  name: string
   size: {
     width: number
     height: number
@@ -23,8 +24,13 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
   private _zonedCells: Map<string, ZoneType> = new Map()
   private _roadCells: RoadCell[] = []
   private _roadCellKeys: string[] = []
-  private _spawnedBuildings: { spawnable: Spawnable; x: number; y: number }[] =
-    []
+  private _spawnedBuildings: {
+    spawnable: Spawnable
+    x: number
+    y: number
+    facingDirection: 'top' | 'right' | 'bottom' | 'left'
+    footprint: { x: number; y: number }[]
+  }[] = []
 
   tilemap: Phaser.Tilemaps.Tilemap
   tileset: Phaser.Tilemaps.Tileset
@@ -34,24 +40,19 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
     super()
     this._gameGrid = gameGrid
 
-    this.createTilemap()
+    // this.createTilemap()
   }
 
-  createTilemap() {
-    this.tilemap = this._gameGrid.scene.make.tilemap({
-      tileWidth: 32,
-      tileHeight: 32,
-      width: this._gameGrid.getGridWidth(),
-      height: this._gameGrid.getGridWidth(),
-    })
-    this.tileset = this.tilemap.addTilesetImage('spawnables', null)
-    this.layer = this.tilemap.createBlankLayer(
-      'spawnablesLayer',
-      this.tileset,
-      0,
-      0
-    )
-  }
+  // createTilemap() {
+  //   this.tilemap = this._gameGrid.scene.make.tilemap({
+  //     tileWidth: 32,
+  //     tileHeight: 32,
+  //     width: this._gameGrid.getGridWidth(),
+  //     height: this._gameGrid.getGridWidth(),
+  //   })
+  //   this.tileset = this.tilemap.addTilesetImage('spawnables', 'spawnablesAtlas')
+  //   this.layer = this.tilemap.createBlankLayer('spawnables', this.tileset)
+  // }
 
   public setZonedCells(zonedCells: Map<string, ZoneType>) {
     // Find all contiguous zones of the same type
@@ -77,7 +78,7 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
     }
 
     clusters.forEach((cluster, zoneType) => {
-      cluster.forEach((points) => {
+      cluster.forEach(async (points) => {
         let p = [...points]
 
         while (p.length > 0) {
@@ -89,65 +90,165 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
             break
           }
 
-          const spawnable = this.getSpawnableBuildingForZoneTypeAndDimensions(
+          const direction = possibleSpawnCells[0].roadSide
+
+          let spawnablePossibilities = this.getSpawnableBuildingForZoneTypeAndDimensions(
             zoneType,
             width,
             height,
-            possibleSpawnCells[0].roadSide
+            direction,
           )
+
+          spawnablePossibilities = spawnablePossibilities.filter((s) =>
+            this.canSpawnBuilding(
+              s,
+              possibleSpawnCells[0].x,
+              possibleSpawnCells[0].y,
+              direction,
+            ),
+          )
+
+          if (spawnablePossibilities.length === 0) {
+            break
+          }
+
+          const spawnable =
+            spawnablePossibilities[
+              Math.floor(Math.random() * spawnablePossibilities.length)
+            ]
 
           if (!spawnable) {
             break
           }
 
+          const buildingFootprint = this.getSpawnedBuildingFootprint(
+            spawnable,
+            possibleSpawnCells[0].x,
+            possibleSpawnCells[0].y,
+            direction,
+          )
+
           const b = {
             spawnable,
             x: possibleSpawnCells[0].x,
             y: possibleSpawnCells[0].y,
+            facingDirection: direction,
+            footprint: buildingFootprint,
           }
 
           this._spawnedBuildings.push(b)
-          this.tilemap.putTileAt(b.spawnable.tilemap.index, b.x, b.y)
+          this.renderSpawnable(b.spawnable, b.x, b.y, direction)
+
+          // Dezone footprint
+          buildingFootprint.forEach((f) => {
+            this._zonedCells.delete(`${f.x}_${f.y}`)
+          })
 
           p = p.filter((point) => {
             const [x, y] = point.split('_').map(Number)
 
-            return (
-              x < b.x ||
-              x > b.x + b.spawnable.size.width - 1 ||
-              y < b.y ||
-              y > b.y + b.spawnable.size.height - 1
-            )
+            return !buildingFootprint.some((f) => f.x === x && f.y === y)
           })
+
+          // sleep 300ms
+          await new Promise((resolve) => setTimeout(resolve, 300))
         }
       })
     })
+  }
+
+  private canSpawnBuilding(
+    spawnable: Spawnable,
+    x: number,
+    y: number,
+    direction: 'top' | 'right' | 'bottom' | 'left',
+  ) {
+    const footprint = this.getSpawnedBuildingFootprint(
+      spawnable,
+      x,
+      y,
+      direction,
+    )
+
+    return footprint.every((f) => this._zonedCells.has(`${f.x}_${f.y}`))
+  }
+
+  private renderSpawnable(
+    spawnable: Spawnable,
+    x: number,
+    y: number,
+    direction: 'top' | 'right' | 'bottom' | 'left',
+  ) {
+    const xOffset = direction === 'right' ? x - spawnable.size.width + 1 : x
+    const yOffset = direction === 'bottom' ? y - spawnable.size.height + 1 : y
+
+    this._gameGrid.scene.add
+      .sprite(
+        xOffset * this._gameGrid.getGridCellSize(),
+        yOffset * this._gameGrid.getGridCellSize(),
+        'spawnablesAtlas',
+        spawnable.name,
+      )
+      .setOrigin(0, 0)
+  }
+
+  private getSpawnedBuildingFootprint(
+    spawnable: Spawnable,
+    x: number,
+    y: number,
+    facingDirection: 'top' | 'right' | 'bottom' | 'left',
+  ) {
+    const footprint = []
+
+    for (let ix = 0; ix < spawnable.size.width; ix++) {
+      for (let iy = 0; iy < spawnable.size.height; iy++) {
+        if (facingDirection === 'top') {
+          footprint.push({ x: x + ix, y: y + iy })
+          continue
+        }
+
+        if (facingDirection === 'right') {
+          footprint.push({ x: x - iy, y: y + ix })
+          continue
+        }
+
+        if (facingDirection === 'bottom') {
+          footprint.push({ x: x + ix, y: y - iy })
+          continue
+        }
+
+        if (facingDirection === 'left') {
+          footprint.push({ x: x + iy, y: y + ix })
+          continue
+        }
+      }
+    }
+
+    return footprint
   }
 
   private getSpawnableBuildingForZoneTypeAndDimensions(
     type: ZoneType,
     width: number,
     height: number,
-    facingDirection: 'top' | 'right' | 'bottom' | 'left'
-  ): Spawnable | null {
+    facingDirection: 'top' | 'right' | 'bottom' | 'left',
+  ): Spawnable[] {
     if (!spawnables[type]) {
-      return null
+      return []
     }
 
-    console.log(facingDirection)
-
-    const spawnable = spawnables[type].find(
+    const spawnable = spawnables[type].filter(
       (spawnable) =>
         spawnable.size.width <= width &&
         spawnable.size.height <= height &&
-        spawnable.possibleOrientations.indexOf(facingDirection) > -1
+        spawnable.possibleOrientations.indexOf(facingDirection) > -1,
     )
 
     if (spawnable) {
       return spawnable
     }
 
-    return null
+    return []
   }
 
   private getClusterSize(points: string[]) {
@@ -155,7 +256,7 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
       points.map((point) => {
         const [x, y] = point.split('_').map(Number)
         return { x, y }
-      })
+      }),
     )
   }
 
@@ -174,13 +275,33 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
 
     const result = []
 
-    points.forEach((point) => {
-      const [x, y] = point.split('_').map(Number)
-      const spawnable = this.pointIsNearRoad(x, y)
-      if (spawnable.isNearRoad) {
-        result.push({ ...spawnable, x, y })
-      }
-    })
+    points
+      .sort((a, b) => {
+        const [ax, ay] = a.split('_').map(Number)
+        const [bx, by] = b.split('_').map(Number)
+
+        if (ax === bx) {
+          return ay - by
+        }
+
+        return ax - bx
+      })
+      .forEach((point) => {
+        const [x, y] = point.split('_').map(Number)
+
+        if (
+          this._spawnedBuildings.some((b) =>
+            b.footprint.some((f) => f.x === x && f.y === y),
+          )
+        ) {
+          return
+        }
+
+        const spawnable = this.pointIsNearRoad(x, y)
+        if (spawnable.isNearRoad) {
+          result.push({ ...spawnable, x, y })
+        }
+      })
 
     return result
   }
@@ -202,7 +323,6 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
 
     neighbors.forEach(([x, y], ix) => {
       if (this.hasRoadCell(x, y)) {
-        //TODO: randomly choose between the current roadSide and directions[ix]
         if (result.roadSide) {
           result.roadSide =
             Math.random() > 0.5 ? directions[ix] : result.roadSide
@@ -220,7 +340,7 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
   }
 
   private findContiguousZones(
-    zoneMap: Map<string, ZoneType>
+    zoneMap: Map<string, ZoneType>,
   ): Map<ZoneType, Array<Array<string>>> {
     const visited = new Set<string>()
     const clustersByType = new Map<ZoneType, Array<Array<string>>>()
@@ -244,7 +364,7 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
     start: string,
     type: ZoneType,
     zoneMap: Map<string, ZoneType>,
-    visited: Set<string>
+    visited: Set<string>,
   ): Array<string> {
     const [x, y] = start.split('_').map(Number)
     const stack: string[] = [start]
