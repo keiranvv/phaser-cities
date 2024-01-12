@@ -105,6 +105,7 @@ export class ZoneManager extends Phaser.Events.EventEmitter {
     const key = `${x}_${y}`
     this.zoneableCells.delete(key)
     this.zonedCells.set(key, this.zoneType)
+    this.tilemap.removeTileAt(x, y)
     this.tilemap.putTileAt(
       this.zoneType === 'residential'
         ? 1
@@ -165,11 +166,19 @@ export class ZoneManager extends Phaser.Events.EventEmitter {
       }
     })
 
+    this.zonedCells.forEach((_, key) => {
+      if (!newZoneableCells.has(key)) {
+        invalidCells.push(key)
+      }
+    })
+
     invalidCells.forEach((key) => {
       const [x, y] = key.split('_')
       this.zonedCells.delete(key)
       this.tilemap.removeTileAt(parseInt(x), parseInt(y))
     })
+
+    this.emit('zonedCellsChanged', this.zonedCells)
 
     this.zoneableCells = newZoneableCells
 
@@ -210,8 +219,8 @@ export class ZoneManager extends Phaser.Events.EventEmitter {
     }
 
     if (
-      x === 0 ||
-      y === 0 ||
+      x < 0 ||
+      y < 0 ||
       x >= this.gameGrid.getGridWidth() - 1 ||
       y >= this.gameGrid.getGridHeight() - 1
     ) {
