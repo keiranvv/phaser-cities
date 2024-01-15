@@ -12,7 +12,6 @@ export class ZoneManager extends Phaser.Events.EventEmitter {
   private zoneableCells: Map<string, boolean> = new Map()
   private zonedCells: Map<string, ZoneType> = new Map()
   private areaSelect: AreaSelect
-  private isDezoning: boolean = false
 
   private zoneType:
     | 'residential'
@@ -115,7 +114,7 @@ export class ZoneManager extends Phaser.Events.EventEmitter {
         ? 3
         : 0,
       x,
-      y
+      y,
     )
   }
 
@@ -184,6 +183,9 @@ export class ZoneManager extends Phaser.Events.EventEmitter {
 
     this.zoneableCells.forEach((_, key) => {
       const [x, y] = key.split('_')
+
+      if (this.zonedCells.has(key)) return
+
       this.drawZoneableTile(parseInt(x), parseInt(y))
     })
   }
@@ -211,10 +213,6 @@ export class ZoneManager extends Phaser.Events.EventEmitter {
 
   private isZoneable(originRoadCell: RoadCell, x: number, y: number) {
     if (this.isRoad(x, y)) {
-      return false
-    }
-
-    if (this.isZoned(x, y)) {
       return false
     }
 
@@ -251,11 +249,7 @@ export class ZoneManager extends Phaser.Events.EventEmitter {
     })
   }
 
-  private isZoned(x: number, y: number) {
-    return this.zonedCells.has(`${x}_${y}`)
-  }
-
-  drawZoneableTile(x, y) {
+  drawZoneableTile(x: number, y: number) {
     this.tilemap.putTileAt(0, x, y)
   }
 }

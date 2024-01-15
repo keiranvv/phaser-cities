@@ -6,22 +6,10 @@
         "width": 2,
         "height": 2
       },
-      "possibleOrientations": ["bottom", "left", "right"],
+      "possibleOrientations": ["bottom", "left", "top", "right"],
       "tilemap": {
         "name": "spawnables",
         "index": 1
-      }
-    },
-    {
-      "name": "residential_2_2_back",
-      "size": {
-        "width": 2,
-        "height": 2
-      },
-      "possibleOrientations": ["top"],
-      "tilemap": {
-        "name": "spawnables",
-        "index": 2
       }
     },
     {
@@ -30,22 +18,60 @@
         "width": 1,
         "height": 1
       },
-      "possibleOrientations": ["bottom", "left", "right"],
+      "possibleOrientations": ["bottom", "left", "top", "right"],
       "tilemap": {
         "name": "spawnables",
         "index": 0
       }
     },
     {
-      "name": "residential_1_1_back",
+      "name": "residential_1_2",
       "size": {
         "width": 1,
-        "height": 1
+        "height": 2
       },
-      "possibleOrientations": ["top"],
+      "possibleOrientations": ["bottom", "top"],
       "tilemap": {
         "name": "spawnables",
-        "index": 3
+        "index": 2
+      }
+    }
+  ],
+  "industrial": [
+    {
+      "name": "industrial_2_2",
+      "size": {
+        "width": 2,
+        "height": 2
+      },
+      "possibleOrientations": ["bottom", "left", "top", "right"],
+      "tilemap": {
+        "name": "spawnables",
+        "index": 4
+      }
+    },
+    {
+      "name": "industrial_1_2",
+      "size": {
+        "width": 1,
+        "height": 2
+      },
+      "possibleOrientations": ["bottom", "top"],
+      "tilemap": {
+        "name": "spawnables",
+        "index": 5
+      }
+    },
+    {
+      "name": "industrial_4_4",
+      "size": {
+        "width": 4,
+        "height": 4
+      },
+      "possibleOrientations": ["bottom", "left", "top", "right"],
+      "tilemap": {
+        "name": "spawnables",
+        "index": 6
       }
     }
   ]

@@ -17,12 +17,24 @@
           "frame": { "x": 32, "y": 0, "w": 64, "h": 64 }
         },
         {
-          "filename": "residential_2_2_back",
-          "frame": { "x": 96, "y": 0, "w": 64, "h": 64 }
+          "filename": "residential_1_2",
+          "frame": { "x": 160, "y": 0, "w": 32, "h": 64 }
         },
         {
-          "filename": "residential_1_1_back",
-          "frame": { "x": 0, "y": 32, "w": 32, "h": 32 }
+          "filename": "residential_2_1",
+          "frame": { "x": 192, "y": 0, "w": 64, "h": 32 }
+        },
+        {
+          "filename": "industrial_2_2",
+          "frame": { "x": 0, "y": 64, "w": 64, "h": 64 }
+        },
+        {
+          "filename": "industrial_1_2",
+          "frame": { "x": 64, "y": 64, "w": 32, "h": 64 }
+        },
+        {
+          "filename": "industrial_4_4",
+          "frame": { "x": 96, "y": 64, "w": 128, "h": 128 }
         }
       ]
     }
