@@ -1,100 +1,105 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-    ></script>
-    <script defer src="game.js"></script>
 
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-        font-family: monospace;
-        cursor: url('assets/images/cursor.png'), auto;
-      }
+<head>
+  <meta charset="utf-8" />
+  <link href="./game.css" rel="stylesheet">
+  <script defer src="game.js"></script>
 
-      #toolbar {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        padding: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-      }
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: monospace;
+      cursor: url('assets/images/cursor.png'), auto;
+    }
 
-      .button {
-        padding: 8px 16px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        cursor: pointer;
-        user-select: none;
-        font-weight: medium;
-        font-size: 14px;
-        position: relative;
-        background: rgba(0, 0, 0, 0.05);
-      }
+    .button {
+      padding: 8px 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+      font-weight: medium;
+      font-size: 14px;
+      position: relative;
+      background: #e0ded4;
+    }
 
-      .button {
-        padding: 8px 16px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        cursor: pointer;
-        user-select: none;
-        font-weight: medium;
-        font-size: 14px;
-        position: relative;
-        background: #e0ded4;
-      }
+    .button.active {
+      background: #594f4f;
+      border-color: #594f4f;
+      color: white;
+    }
 
-      .button.active {
-        background: #594f4f;
-        border-color: #594f4f;
-        color: white;
-      }
+    #stats {
+      position: absolute;
+      bottom: 32px;
+      right: 32px;
+      display: flex;
+      flex-direction: column;
+      background: rgba(0, 0, 0, 0.1);
+      padding: 16px;
+      border-radius: 4px;
+      width: 200px;
+    }
 
-      .sub-menu {
-        position: absolute;
-        bottom: 48px;
-        left: 0;
-        row-gap: 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        background: #fff;
-        padding: 8px;
-        border-radius: 4px;
-        box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
-      }
-    </style>
-  </head>
+    #stats label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
 
-  <body>
-    <div id="toolbar">
-      <div class="button" id="road">
-        Road
+    .demand-bar {
+      display: inline-block;
+      height: 8px;
+      border-radius: 2px;
+      margin-left: 6px;
+      transition: flex 1s ease;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="toolbar" class="absolute top-0 left-0 right-0 p-4 flex items-center justify-center gap-2">
+    <div class="button" id="road">
+      Road
+    </div>
+    <div class="button" id="residential">
+      Residential
+    </div>
+    <div class="button" id="commercial">
+      Commercial
+    </div>
+    <div class="button" id="industrial">
+      Industrial
+    </div>
+    <div class="button" id="dezone">
+      De-zone
+    </div>
+    <div class="button" id="bulldoze">
+      Bulldoze
+    </div>
+  </div>
+  <div id="game"></div>
+  <div id="stats" x-on:update.window="demand = $event.detail.demand"
+    x-data="{ demand: {residential: 1, commercial: 2, industrial: 3}}">
+    <div>
+      <label>Demand</label>
+      <div class="flex items-center">
+        Residential <span class="demand-bar bg-[#498467]"
+          :style="{ flex: (demand.residential / Math.max(demand.residential, demand.commercial, demand.industrial, 100)) || 0 }"></span>
       </div>
-      <div class="button" id="residential">
-        Residential
+      <div class="flex items-center">
+        Commercial&nbsp;<span class="demand-bar bg-[#5da9e9]"
+          :style="{ flex: (demand.commercial / Math.max(demand.residential, demand.commercial, demand.industrial, 100)) || 0 }"></span>
       </div>
-      <div class="button" id="commercial">
-        Commercial
-      </div>
-      <div class="button" id="industrial">
-        Industrial
-      </div>
-      <div class="button" id="dezone">
-        De-zone
-      </div>
-      <div class="button" id="bulldoze">
-        Bulldoze
+      <div class="flex items-center">
+        Industrial&nbsp;<span class="demand-bar bg-[#e9c95d]"
+          :style="{ flex: (demand.industrial/ Math.max(demand.residential, demand.commercial, demand.industrial, 100)) || 0 }"></span>
       </div>
     </div>
-    <div id="game"></div>
-  </body>
+  </div>
+</body>
+
 </html>

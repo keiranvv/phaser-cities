@@ -1,9 +1,17 @@
 import * as Phaser from 'phaser'
+import Alpine from 'alpinejs'
 import { CameraController } from './cameraController'
 import { RoadCell, RoadManager } from './roadManager'
 import { GameGrid } from './gameGrid'
 import { ZoneManager, ZoneType } from './zoneManager'
 import { BuildingSpawner } from './buildingSpawner'
+import { DemandManager } from './gameState/demandManager'
+
+declare global {
+  interface Window {
+    Alpine: any
+  }
+}
 
 const gridCellSize: number = 32
 const worldSize: number = 320
@@ -16,6 +24,11 @@ type ToolType =
   | 'dezone'
   | 'bulldoze'
 
+const updateUIData = (data: any) => {
+  window.dispatchEvent(new CustomEvent('update', { detail: data }))
+  console.log(data)
+}
+
 class MainScene extends Phaser.Scene {
   private gridCellSize: number = gridCellSize
   private worldSize: number = worldSize
@@ -24,9 +37,13 @@ class MainScene extends Phaser.Scene {
   private roadManager: RoadManager
   private zoneManager: ZoneManager
   private buildingSpawner: BuildingSpawner
+  private demandManager: DemandManager
 
   constructor() {
     super({ key: 'MainScene' })
+
+    Alpine.start()
+    window.Alpine = Alpine
   }
 
   setupToolbar() {
@@ -71,7 +88,7 @@ class MainScene extends Phaser.Scene {
       this.roadManager.destroyMode = true
     } else {
       this.zoneManager.setZoneType(
-        this.zoneManager.getZoneType() === toolType ? 'none' : toolType,
+        this.zoneManager.getZoneType() === toolType ? 'none' : toolType
       )
     }
   }
@@ -84,7 +101,7 @@ class MainScene extends Phaser.Scene {
     this.load.atlas(
       'spawnablesAtlas',
       'assets/images/tiles/spawnables.png',
-      'assets/images/tiles/spawnables.json',
+      'assets/images/tiles/spawnables.json'
     )
   }
 
@@ -95,13 +112,13 @@ class MainScene extends Phaser.Scene {
       0,
       0,
       this.worldSize * this.gridCellSize,
-      this.worldSize * this.gridCellSize,
+      this.worldSize * this.gridCellSize
     )
     this.cameras.main.setBounds(
       0,
       0,
       this.worldSize * this.gridCellSize,
-      this.worldSize * this.gridCellSize,
+      this.worldSize * this.gridCellSize
     )
 
     // Put camera in the middle of the world
@@ -114,16 +131,17 @@ class MainScene extends Phaser.Scene {
       this,
       this.gridCellSize,
       this.worldSize,
-      this.worldSize,
+      this.worldSize
     )
     this.input.mouse.disableContextMenu()
 
-    // this.grid.drawGrid()
+    this.grid.drawGrid()
 
     this.cameraController = new CameraController(this)
     this.zoneManager = new ZoneManager([], this.grid)
     this.roadManager = new RoadManager(this.grid)
     this.buildingSpawner = new BuildingSpawner(this.grid)
+    this.demandManager = new DemandManager()
 
     this.roadManager.on('roadTilesChanged', (cells: RoadCell[]) => {
       this.zoneManager.updateRoadCells(cells)
@@ -132,6 +150,30 @@ class MainScene extends Phaser.Scene {
 
     this.zoneManager.on('zonedCellsChanged', (cells: Map<string, ZoneType>) => {
       this.buildingSpawner.setZonedCells(cells)
+
+      const residentialCount = Array.from(cells.values()).filter(
+        (type) => type === 'residential'
+      ).length
+
+      const commercialCount = Array.from(cells.values()).filter(
+        (type) => type === 'commercial'
+      ).length
+
+      const industrialCount = Array.from(cells.values()).filter(
+        (type) => type === 'industrial'
+      ).length
+
+      const zoneCounts: Record<ZoneType, number> = {
+        residential: residentialCount,
+        commercial: commercialCount,
+        industrial: industrialCount,
+        dezone: 0,
+      }
+
+      this.demandManager.updateZones(zoneCounts)
+
+      console.log(this.demandManager.getDemands())
+      updateUIData({ demand: this.demandManager.getDemands() })
     })
   }
 

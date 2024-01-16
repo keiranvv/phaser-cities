@@ -84,7 +84,9 @@ export class GameGrid extends Events.EventEmitter {
         .distance(pointer.position)
 
       if (distance > 10) {
-        this.cellPointerStartDrag(this.getWorldPointToGridCell(pointer))
+        this.cellPointerStartDrag(
+          this.getWorldPointToGridCell(this.startDragPointerPosition)
+        )
       }
     }
 
@@ -104,7 +106,9 @@ export class GameGrid extends Events.EventEmitter {
     this.cellPointerEndDrag(cell)
   }
 
-  getWorldPointToGridCell(pointer: Phaser.Input.Pointer): Phaser.Math.Vector2 {
+  getWorldPointToGridCell<T extends { x: number; y: number }>(
+    pointer: T
+  ): Phaser.Math.Vector2 {
     const worldPoint = this.scene.cameras.main.getWorldPoint(
       pointer.x,
       pointer.y

@@ -23,7 +23,7 @@ export class ZoneManager extends Phaser.Events.EventEmitter {
   public zoneColors = {
     residential: 0x498467,
     commercial: 0x5da9e9,
-    industrial: 0xd98324,
+    industrial: 0xd1bd55,
     dezone: 0x000000,
   }
 
@@ -114,7 +114,7 @@ export class ZoneManager extends Phaser.Events.EventEmitter {
         ? 3
         : 0,
       x,
-      y,
+      y
     )
   }
 

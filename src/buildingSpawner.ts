@@ -19,6 +19,40 @@ import spawnables from './data/spawnables.json'
 import { RoadCell } from './roadManager'
 import { calculateCoordinateDimensions } from './util/grid'
 
+const maxBuildingWidths = Object.entries(spawnables).reduce(
+  (acc, curr) => {
+    const max = curr[1].reduce((acc, curr) => {
+      if (curr.size.width > acc) {
+        return curr.size.width
+      }
+      return acc
+    }, 0)
+
+    return {
+      ...acc,
+      [curr[0]]: max,
+    }
+  },
+  { residential: 0, commercial: 0, industrial: 0 }
+)
+
+const maxBuildingHeights = Object.entries(spawnables).reduce(
+  (acc, curr) => {
+    const max = curr[1].reduce((acc, curr) => {
+      if (curr.size.height > acc) {
+        return curr.size.height
+      }
+      return acc
+    }, 0)
+
+    return {
+      ...acc,
+      [curr[0]]: max,
+    }
+  },
+  { residential: 0, commercial: 0, industrial: 0 }
+)
+
 class Building {
   footprint: { x: number; y: number }[]
 
@@ -27,7 +61,7 @@ class Building {
     public readonly x: number,
     public readonly y: number,
     public readonly facingDirection: 'top' | 'right' | 'bottom' | 'left',
-    public sprite?: Phaser.GameObjects.Sprite | null,
+    public sprite?: Phaser.GameObjects.Sprite | null
   ) {
     this.footprint = []
 
@@ -64,6 +98,8 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
   private _roadCellKeys: string[] = []
   private _spawnedBuildings: Building[] = []
 
+  private _occupiedCells: Map<string, Building> = new Map()
+
   tilemap: Phaser.Tilemaps.Tilemap
   tileset: Phaser.Tilemaps.Tileset
   layer: Phaser.Tilemaps.TilemapLayer
@@ -71,6 +107,7 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
   constructor(gameGrid: GameGrid) {
     super()
     this._gameGrid = gameGrid
+    ;(window as any).ta = this.getCellSpawnableArea.bind(this)
   }
 
   public setZonedCells(zonedCells: Map<string, ZoneType>) {
@@ -93,7 +130,7 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
     // Filter out buildings that are no longer valid
     this._spawnedBuildings = this._spawnedBuildings.filter((building) => {
       const isValid = building.footprint.every((fp) =>
-        this._zonedCells.has(`${fp.x}_${fp.y}`),
+        this._zonedCells.has(`${fp.x}_${fp.y}`)
       )
 
       // If the building is not valid, remove its sprite from the scene
@@ -103,11 +140,17 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
 
       return isValid
     })
+
+    this._occupiedCells = new Map(
+      this._spawnedBuildings.flatMap((building) =>
+        building.footprint.map((fp) => [`${fp.x}_${fp.y}`, building])
+      )
+    )
   }
 
   private async update() {
     const clusters = this.findContiguousZones(
-      this.getZonedCellsWithoutBuildings(),
+      this.getZonedCellsWithoutBuildings()
     )
 
     if (clusters.size === 0) {
@@ -119,9 +162,9 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
         let p = [...points]
 
         while (p.length > 0) {
-          let possibleSpawnCells = this.findSpawnableCells(p)
-
           const { width, height } = this.getClusterSize(p)
+
+          let possibleSpawnCells = this.findSpawnableCells(p)
 
           if (!possibleSpawnCells || possibleSpawnCells.length === 0) {
             break
@@ -129,15 +172,22 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
 
           possibleSpawnCells = possibleSpawnCells
             .map((p) => {
+              const { width, height } = this.getCellSpawnableArea(
+                p.x,
+                p.y,
+                zoneType
+              )
+
               return {
                 ...p,
                 roadSides: p.roadSides.filter((s) => {
-                  const spawnablePossibilities = this.getSpawnableBuildingForZoneTypeAndDimensions(
-                    zoneType,
-                    width,
-                    height,
-                    s,
-                  )
+                  const spawnablePossibilities =
+                    this.getSpawnableBuildingForZoneTypeAndDimensions(
+                      zoneType,
+                      width,
+                      height,
+                      s
+                    )
 
                   return spawnablePossibilities.length > 0
                 }),
@@ -154,20 +204,21 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
               Math.floor(Math.random() * possibleSpawnCells[0].roadSides.length)
             ]
 
-          let spawnablePossibilities = this.getSpawnableBuildingForZoneTypeAndDimensions(
-            zoneType,
-            width,
-            height,
-            direction,
-          )
+          let spawnablePossibilities =
+            this.getSpawnableBuildingForZoneTypeAndDimensions(
+              zoneType,
+              width,
+              height,
+              direction
+            )
 
           spawnablePossibilities = spawnablePossibilities.filter((s) =>
             this.canSpawnBuilding(
               s,
               possibleSpawnCells[0].x,
               possibleSpawnCells[0].y,
-              direction,
-            ),
+              direction
+            )
           )
 
           if (spawnablePossibilities.length === 0) {
@@ -187,12 +238,15 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
             spawnable,
             possibleSpawnCells[0].x,
             possibleSpawnCells[0].y,
-            direction,
+            direction
           )
 
           b.sprite = this.renderBuilding(b)
 
           this._spawnedBuildings.push(b)
+          b.footprint.forEach((fp) => {
+            this._occupiedCells.set(`${fp.x}_${fp.y}`, b)
+          })
 
           p = p.filter((point) => {
             const [x, y] = point.split('_').map(Number)
@@ -209,16 +263,7 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
 
   private getZonedCellsWithoutBuildings() {
     const result = Array.from(this._zonedCells.entries())
-      .filter(
-        ([key]) =>
-          !this._spawnedBuildings.some((b) =>
-            b.footprint.some(
-              (fp) =>
-                fp.x === Number(key.split('_')[0]) &&
-                fp.y === Number(key.split('_')[1]),
-            ),
-          ),
-      )
+      .filter(([key]) => !this._occupiedCells.has(key))
       .map(([key, value]) => ({ key, value }))
 
     return new Map(result.map(({ key, value }) => [key, value]))
@@ -228,17 +273,17 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
     spawnable: Spawnable,
     x: number,
     y: number,
-    direction: 'top' | 'right' | 'bottom' | 'left',
+    direction: 'top' | 'right' | 'bottom' | 'left'
   ) {
     const building = new Building(spawnable, x, y, direction)
 
-    return building.footprint.every(
+    const canSpawn = building.footprint.every(
       (f) =>
         this._zonedCells.has(`${f.x}_${f.y}`) &&
-        !this._spawnedBuildings.some((b) =>
-          b.footprint.some((fp) => fp.x === f.x && fp.y === f.y),
-        ),
+        !this._occupiedCells.has(`${f.x}_${f.y}`)
     )
+
+    return canSpawn
   }
 
   private renderBuilding({ facingDirection, x, y, spawnable }: Building) {
@@ -252,16 +297,63 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
         xOffset * this._gameGrid.getGridCellSize(),
         yOffset * this._gameGrid.getGridCellSize(),
         'spawnablesAtlas',
-        spawnable.name,
+        spawnable.name
       )
       .setOrigin(0, 0)
+  }
+
+  private getCellSpawnableArea(
+    x: number,
+    y: number,
+    zoneType: ZoneType
+  ): { width: number; height: number } {
+    let w = 0
+    let h = 0
+
+    const maxWidth = maxBuildingWidths[zoneType]
+    const maxHeight = maxBuildingHeights[zoneType]
+
+    for (let i = 0; i < Math.max(maxWidth, maxHeight); i++) {
+      if (i < maxWidth) {
+        if (i !== 0) {
+          w +=
+            this._zonedCells.has(`${x - i}_${y}`) &&
+            !this._occupiedCells.has(`${x - i}_${y}`)
+              ? 1
+              : 0
+          w +=
+            this._zonedCells.has(`${x + i}_${y}`) &&
+            !this._occupiedCells.has(`${x + i}_${y}`)
+              ? 1
+              : 0
+        }
+      }
+
+      if (i < maxHeight) {
+        if (i !== 0) {
+          h +=
+            this._zonedCells.has(`${x}_${y - i}`) &&
+            !this._occupiedCells.has(`${x}_${y - i}`)
+              ? 1
+              : 0
+          h +=
+            this._zonedCells.has(`${x}_${y + i}`) &&
+            !this._occupiedCells.has(`${x}_${y + i}`)
+              ? 1
+              : 0
+        }
+      }
+    }
+
+    // Increment width and height by 1 to account for the cell at (x, y)
+    return { width: w + 1, height: h + 1 }
   }
 
   private getSpawnableBuildingForZoneTypeAndDimensions(
     type: ZoneType,
     width: number,
     height: number,
-    facingDirection: 'top' | 'right' | 'bottom' | 'left',
+    facingDirection: 'top' | 'right' | 'bottom' | 'left'
   ): Spawnable[] {
     if (!spawnables[type]) {
       return []
@@ -271,7 +363,7 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
       (spawnable) =>
         spawnable.size.width <= width &&
         spawnable.size.height <= height &&
-        spawnable.possibleOrientations.indexOf(facingDirection) > -1,
+        spawnable.possibleOrientations.indexOf(facingDirection) > -1
     )
 
     if (spawnable) {
@@ -286,7 +378,7 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
       points.map((point) => {
         const [x, y] = point.split('_').map(Number)
         return { x, y }
-      }),
+      })
     )
   }
 
@@ -319,11 +411,7 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
       .forEach((point) => {
         const [x, y] = point.split('_').map(Number)
 
-        if (
-          this._spawnedBuildings.some((b) =>
-            b.footprint.some((f) => f.x === x && f.y === y),
-          )
-        ) {
+        if (this._occupiedCells.has(`${x}_${y}`)) {
           return
         }
 
@@ -365,7 +453,7 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
   }
 
   private findContiguousZones(
-    zoneMap: Map<string, ZoneType>,
+    zoneMap: Map<string, ZoneType>
   ): Map<ZoneType, Array<Array<string>>> {
     const visited = new Set<string>()
     const clustersByType = new Map<ZoneType, Array<Array<string>>>()
@@ -389,7 +477,7 @@ export class BuildingSpawner extends Phaser.Events.EventEmitter {
     start: string,
     type: ZoneType,
     zoneMap: Map<string, ZoneType>,
-    visited: Set<string>,
+    visited: Set<string>
   ): Array<string> {
     const [x, y] = start.split('_').map(Number)
     const stack: string[] = [start]
